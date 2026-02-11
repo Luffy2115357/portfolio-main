@@ -1,35 +1,36 @@
 pipeline {
     agent any
+    environment {
+        // Professional Versioning: Uses Jenkins Build Number
+        IMAGE_NAME = "luffy2115357/portfolio-app:${env.BUILD_NUMBER}"
+        CONTAINER_NAME = "portfolio-container"
+    }
     stages {
         stage('Build') {
             steps {
-                echo 'Building the Docker Image...'
-                sh 'docker build -t my-portfolio-app .'
-            }
-        }
-        stage('Deploy') {
-            steps {
-                echo 'Deploying to Port 5000...'
-                sh 'docker rm -f portfolio-container || true'
-                sh 'docker run -d --name portfolio-container -p 5000:5000 my-portfolio-app'
-                // Give the app 5 seconds to "wake up"
-                sh 'sleep 5'
+                echo "Building version ${env.BUILD_NUMBER}..."
+                sh "docker build -t ${IMAGE_NAME} ."
             }
         }
         stage('Test') {
             steps {
-                echo 'Testing: Is the website actually running?'
-                // This checks if the website returns the success code "200"
-                sh 'curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 | grep 200'
+                echo "Running Unit Tests with Pytest..."
+                // Ensures your Python code is valid before we dare to deploy it
+                sh "docker run --rm ${IMAGE_NAME} python -m pytest"
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo "Deploying version ${env.BUILD_NUMBER}..."
+                // Remove the existing container so we can start the new version
+                sh "docker rm -f ${CONTAINER_NAME} || true"
+                sh "docker run -d --name ${CONTAINER_NAME} -p 5000:5000 ${IMAGE_NAME}"
             }
         }
     }
     post {
         success {
-            echo 'Everything works! Your site is live.'
-        }
-        failure {
-            echo 'Something went wrong. The app is broken!'
+            echo "Successfully deployed Build #${env.BUILD_NUMBER}!"
         }
     }
 }
